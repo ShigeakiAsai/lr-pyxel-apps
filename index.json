@@ -1,10 +1,58 @@
 [
   {
-    "name": "Mega Wing",
-    "file": "mega_wing.pyxapp",
-    "url": "https://github.com/ShigeakiAsai/lr-pyxel-apps/raw/main/apps/mega_wing.pyxapp",
+    "name": "30sec of Daylight",
+    "file": "30sec_of_daylight.pyxapp",
+    "url": "https://raw.githubusercontent.com/kitao/pyxel/main/python/pyxel/examples/apps/30sec_of_daylight.pyxapp",
     "author": "Takashi Kitao",
     "license": "MIT",
-    "size": 0
+    "size": 19824
+  },
+  {
+    "name": "Cursed Caverns",
+    "file": "cursed_caverns.pyxapp",
+    "url": "https://raw.githubusercontent.com/kitao/pyxel/main/python/pyxel/examples/apps/cursed_caverns.pyxapp",
+    "author": "Takashi Kitao",
+    "license": "MIT",
+    "size": 19569
+  },
+  {
+    "name": "Laser Jetman",
+    "file": "laser-jetman.pyxapp",
+    "url": "https://raw.githubusercontent.com/kitao/pyxel/main/python/pyxel/examples/apps/laser-jetman.pyxapp",
+    "author": "Takashi Kitao",
+    "license": "MIT",
+    "size": 32706
+  },
+  {
+    "name": "Mega Wing",
+    "file": "mega_wing.pyxapp",
+    "url": "https://raw.githubusercontent.com/kitao/pyxel/main/python/pyxel/examples/apps/mega_wing.pyxapp",
+    "author": "Takashi Kitao",
+    "license": "MIT",
+    "size": 12035
+  },
+  {
+    "name": "Megaball",
+    "file": "megaball.pyxapp",
+    "url": "https://raw.githubusercontent.com/kitao/pyxel/main/python/pyxel/examples/apps/megaball.pyxapp",
+    "author": "Takashi Kitao",
+    "license": "MIT",
+    "size": 30057
+  },
+  {
+    "name": "Space Rescue",
+    "file": "space_rescue.pyxapp",
+    "url": "https://raw.githubusercontent.com/kitao/pyxel/main/python/pyxel/examples/apps/space_rescue.pyxapp",
+    "author": "Takashi Kitao",
+    "license": "MIT",
+    "size": 4207
+  },
+  {
+    "name": "Vortexion",
+    "file": "vortexion.pyxapp",
+    "url": "https://raw.githubusercontent.com/kitao/pyxel/main/python/pyxel/examples/apps/vortexion.pyxapp",
+    "author": "Takashi Kitao",
+    "license": "MIT",
+    "size": 47960
   }
 ]
