@@ -9,7 +9,7 @@ import sys
 import threading
 
 INDEX_URL = "https://raw.githubusercontent.com/ShigeakiAsai/lr-pyxel-apps/main/index.json"
-ROMS_DIR  = "/storage/roms/pyxel"
+ROMS_DIR  = os.path.expanduser(os.environ.get("LR_PYXEL_ROMS_DIR", "/storage/roms/pyxel"))
 
 W, H = 128, 128
 
@@ -22,6 +22,7 @@ STATE_ERROR    = 4
 state     = STATE_LOADING
 games     = []
 cursor    = 0
+scroll    = 0
 message   = "Loading..."
 error_msg = ""
 
@@ -30,6 +31,17 @@ error_msg = ""
 # interval (no acceleration). Same values as frontend.py for consistency.
 REPEAT_HOLD = 20
 REPEAT_RATE = 4
+
+# Each entry is 18px tall, starting at y=16; the footer (divider line +
+# "A:download B:back") needs the last 12px of the 128px screen, leaving
+# y=16..116 (100px) for the list itself. 100 // 18 = 5 entries fit
+# cleanly without overlapping the footer — found when the app catalog
+# grew to 7 entries and the last one or two started drawing on top of
+# the footer text, unnoticed until then since earlier catalogs never
+# had more than a handful of entries. Same class of bug as frontend.py's
+# MAX_VISIBLE fix (v0.12.3), just never applied here since this list
+# didn't exist yet at the time.
+MAX_VISIBLE = 5
 
 # Networking is done entirely on the Rust side (pyxel.http_get /
 # pyxel.download_file, which shell out to the system `curl` binary),
@@ -76,7 +88,7 @@ pyxel.init(W, H, title="lr-pyxel Downloader", fps=30)
 
 
 def update():
-    global cursor, state
+    global cursor, scroll, state
 
     # Ignore input for first 10 frames to avoid button carry-over from launcher
     if pyxel.frame_count < 10:
@@ -86,9 +98,13 @@ def update():
         if pyxel.btnp(pyxel.KEY_UP, REPEAT_HOLD, REPEAT_RATE) or \
            pyxel.btnp(pyxel.GAMEPAD1_BUTTON_DPAD_UP, REPEAT_HOLD, REPEAT_RATE):
             cursor = max(0, cursor - 1)
+            if cursor < scroll:
+                scroll = cursor
         if pyxel.btnp(pyxel.KEY_DOWN, REPEAT_HOLD, REPEAT_RATE) or \
            pyxel.btnp(pyxel.GAMEPAD1_BUTTON_DPAD_DOWN, REPEAT_HOLD, REPEAT_RATE):
             cursor = min(len(games) - 1, cursor + 1)
+            if cursor >= scroll + MAX_VISIBLE:
+                scroll = cursor - MAX_VISIBLE + 1
         if pyxel.btnp(pyxel.KEY_RETURN) or pyxel.btnp(pyxel.GAMEPAD1_BUTTON_A):
             threading.Thread(target=download_game, args=(games[cursor],), daemon=True).start()
 
@@ -115,14 +131,27 @@ def draw():
         pyxel.text(24, 56, "Loading" + dots, 13)
 
     elif state == STATE_LIST:
-        for i, game in enumerate(games):
+        for i in range(MAX_VISIBLE):
+            idx = scroll + i
+            if idx >= len(games):
+                break
+            game = games[idx]
             y = 16 + i * 18
-            if i == cursor:
+            if idx == cursor:
                 pyxel.rect(0, y - 1, W, 17, 1)
                 pyxel.text(4, y, game["name"][:20], 7)
             else:
                 pyxel.text(4, y, game["name"][:20], 6)
             pyxel.text(4, y + 8, "by " + game.get("author", "")[:18], 5)
+
+        # Scrollbar, same pattern as frontend.py's
+        if len(games) > MAX_VISIBLE:
+            list_h = MAX_VISIBLE * 18
+            bar_h = max(4, list_h * MAX_VISIBLE // len(games))
+            bar_y = 16 + scroll * (list_h - bar_h) // (len(games) - MAX_VISIBLE)
+            pyxel.rect(W - 3, 16, 2, list_h, 1)
+            pyxel.rect(W - 3, bar_y, 2, bar_h, 5)
+
         pyxel.line(0, H - 12, W - 1, H - 12, 5)
         pyxel.text(2, H - 9, "A:download  B:back", 5)
 
