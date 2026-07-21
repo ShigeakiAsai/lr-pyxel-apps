@@ -27,6 +27,23 @@ from pathlib import Path
 
 import pyxel
 
+# 再生中のキャンセル判定に使うキー/ボタン。
+CANCEL_KEYS = (pyxel.KEY_Q, pyxel.GAMEPAD1_BUTTON_X)
+
+# 再生終了後の「何かキーを押したら終了」判定に使う候補キー/ボタン一覧。
+# Pyxelに「任意のキー」を一括判定するAPIが無いため、代表的なキー/ボタンを
+# 列挙してカバーする(このリストに無いキーだと反応しない点に注意)。
+ANY_KEY_CANDIDATES = (
+    pyxel.KEY_RETURN, pyxel.KEY_SPACE, pyxel.KEY_ESCAPE, pyxel.KEY_Q,
+    pyxel.KEY_UP, pyxel.KEY_DOWN, pyxel.KEY_LEFT, pyxel.KEY_RIGHT,
+    pyxel.GAMEPAD1_BUTTON_A, pyxel.GAMEPAD1_BUTTON_B,
+    pyxel.GAMEPAD1_BUTTON_X, pyxel.GAMEPAD1_BUTTON_Y,
+    pyxel.GAMEPAD1_BUTTON_START, pyxel.GAMEPAD1_BUTTON_BACK,
+    pyxel.GAMEPAD1_BUTTON_DPAD_UP, pyxel.GAMEPAD1_BUTTON_DPAD_DOWN,
+    pyxel.GAMEPAD1_BUTTON_DPAD_LEFT, pyxel.GAMEPAD1_BUTTON_DPAD_RIGHT,
+    pyxel.GAMEPAD1_BUTTON_LEFTSHOULDER, pyxel.GAMEPAD1_BUTTON_RIGHTSHOULDER,
+)
+
 
 def load_manifest(out_dir: Path) -> dict:
     return json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
@@ -163,6 +180,11 @@ class VideoApp:
             pyxel.init(self.w, self.h, title=window_title, fps=self.fps)
         pyxel.colors.from_list(self.palette)
 
+        # "play end" メッセージ用の文字色/背景色を、動画専用パレットの中から
+        # 実行時に選ぶ。パレット全体を動画の色に総入れ替えしているため、
+        # 固定の色番号(例: 白=7)決め打ちだと動画によっては読みにくくなるため。
+        self._text_col, self._bg_col = self._pick_contrast_colors()
+
         self.img_ptr = pyxel.images[0].data_ptr()
         # pyxel.images[] の各バンクは、ゲーム自身のwidth/height(ここでは
         # self.w/self.h)とは無関係に、常に pyxel.IMAGE_SIZE x IMAGE_SIZE
@@ -186,18 +208,40 @@ class VideoApp:
 
         pyxel.run(self.update, self.draw)
 
+    def _pick_contrast_colors(self):
+        """パレット16色の中から、輝度が最も高い/低い色のインデックスを返す。
+        (text_col, bg_col) の順。"""
+        def luminance(rgb24):
+            r, g, b = (rgb24 >> 16) & 255, (rgb24 >> 8) & 255, rgb24 & 255
+            return 0.299 * r + 0.587 * g + 0.114 * b
+        lums = [(luminance(c), i) for i, c in enumerate(self.palette)]
+        light_idx = max(lums)[1]
+        dark_idx = min(lums)[1]
+        return light_idx, dark_idx
+
     def update(self):
+        if self._ended:
+            # 再生終了後: 何かキー/ボタンが押されたら終了する
+            if any(pyxel.btnp(k) for k in ANY_KEY_CANDIDATES):
+                pyxel.quit()
+            return
+
+        if any(pyxel.btnp(k) for k in CANCEL_KEYS):
+            # 再生中のキャンセル: 即座に終了する
+            pyxel.quit()
+            return
+
         if pyxel.btnp(pyxel.KEY_SPACE):
             self.paused = not self.paused
             self.audio.toggle_pause()
 
-        if self.paused or self._ended:
+        if self.paused:
             return
 
         if self.audio.available:
             sec = self.audio.current_sec()
             if sec is None:
-                self._ended = True  # 音声再生終了 = 動画終了
+                self._ended = True  # 音声再生終了 = 動画終了 (メッセージ表示に移行)
                 return
             target = int(sec * self.fps)
         else:
@@ -206,7 +250,7 @@ class VideoApp:
 
         if target >= self.frame_count_total:
             target = self.frame_count_total - 1
-            self._ended = True
+            self._ended = True  # メッセージ表示に移行 (この回は最終フレームを描画する)
 
         if target != self.last_shown:
             frame_bytes = self.store.get(target)
@@ -225,3 +269,20 @@ class VideoApp:
     def draw(self):
         pyxel.cls(0)
         pyxel.blt(0, 0, 0, 0, 0, self.w, self.h)
+        if self._ended:
+            self._draw_end_message()
+
+    def _draw_end_message(self):
+        line1 = "play end"
+        line2 = "-push any key-"
+        char_w = 4  # Pyxel標準フォントの1文字あたり幅(frontend.py/splash.rsと同じ前提)
+        margin = 2
+        box_w = max(len(line1), len(line2)) * char_w + margin * 2
+        box_h = 8 * 2 + margin * 2
+        box_x = self.w - box_w
+        box_y = self.h - box_h
+        pyxel.rect(box_x, box_y, box_w, box_h, self._bg_col)
+        x1 = self.w - len(line1) * char_w - margin
+        x2 = self.w - len(line2) * char_w - margin
+        pyxel.text(x1, box_y + margin, line1, self._text_col)
+        pyxel.text(x2, box_y + margin + 8, line2, self._text_col)
