@@ -40,11 +40,24 @@ AudioController = PcmAudioController
 
 
 def resolve_out_dir() -> str:
+    script_dir = Path(__file__).resolve().parent
+
+    # パッケージング済み(.pyxapp)実行時はこちらを優先する。
+    # `pyxel play x.pyxapp` や lr-pyxel の pyxel.load_content() 経由だと、
+    # このスクリプト用にきれいな sys.argv が用意されるとは限らず、
+    # ホスト側のコマンドライン引数をそのまま引き継いでしまうことがある
+    # (例: `pyxel play x.pyxapp` 経由だと sys.argv[1] が "play" になり、
+    # out_dir と誤認してしまう — 実機で確認済み)。
+    # そのため sys.argv より先に、スクリプト自身の場所に manifest.json が
+    # あるかどうかで判定する。
+    if (script_dir / "manifest.json").exists():
+        return str(script_dir)
+
     if len(sys.argv) >= 2:
-        # シェルから明示的に指定された場合はそれを使う (PC実行時)
+        # 手動でのPC実行時 (python3 player.py out_dir) はこちら。
         return sys.argv[1]
-    # 引数が無ければ、スクリプト自身と同じディレクトリを使う (lr-pyxel実行時)
-    return str(Path(__file__).resolve().parent)
+
+    return str(script_dir)
 
 
 def main():
@@ -52,5 +65,11 @@ def main():
     VideoApp(out_dir, audio_controller=AudioController(), window_title="Pyxel Video")
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__": のガードは使わない。
+# lr-pyxel が pyxel.load_content() 経由でこのスクリプトを実行する際、
+# 実行環境によっては __name__ が "__main__" にならない可能性があり、
+# その場合ガード付きだと main() が一切呼ばれず何も起動しなくなる
+# (frontend.py もガード無しのトップレベル実行スタイルになっている)。
+# `python3 player.py out_dir` として直接実行する場合は __name__ は
+# 必ず "__main__" になるため、ガードを外しても動作は変わらない。
+main()
