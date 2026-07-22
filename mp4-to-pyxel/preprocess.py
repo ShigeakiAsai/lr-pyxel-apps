@@ -75,46 +75,6 @@ def to_hex_colors(rgb_list):
     return [(r << 16) | (g << 8) | b for r, g, b in rgb_list]
 
 
-LAUNCHER_TEMPLATE = '''#!/usr/bin/env python3
-# main.py — preprocess.py が自動生成した起動スクリプト。
-#
-# lr-pyxel は Python スクリプトを実行する前に、ソースコードのテキストを
-# 静的パースして pyxel.init() のリテラル引数を探し、それを最初の
-# RetroArch ジオメトリ申告(retro_get_system_av_info / 最初のSET_GEOMETRY)に
-# 使う (retro.rs の parse_pyxel_init())。manifest.json から実行時に読んだ
-# 変数を pyxel.init() に渡すと静的パーサが解決できずデフォルト値
-# (128x128)にフォールバックしてしまい、後から正しい値で再申告しても
-# 表示が化ける (実測: {width}x{height}の映像が128x128前提の枠の上側
-# {height}/128 の位置に収まり、残りが空白になる)。
-#
-# そのため、ここで pyxel.init() をリテラル引数で明示的に呼んでおき、
-# VideoApp 側では skip_pyxel_init=True で呼び直しをスキップする。
-import pyxel
-pyxel.init({width}, {height}, title="Pyxel Video", fps={fps})
-
-from pathlib import Path
-from video_common import PcmAudioController, VideoApp
-
-VideoApp(
-    str(Path(__file__).resolve().parent),
-    audio_controller=PcmAudioController(),
-    window_title="Pyxel Video",
-    skip_pyxel_init=True,
-)
-'''
-
-
-def write_launcher(out_dir: Path, width: int, height: int, fps: int):
-    """lr-pyxel向けの起動スクリプト (main.py) を生成する。
-
-    video_common.py もこの main.py と同じディレクトリに置くこと
-    (preprocess.py 自体はコピーしないので、python_video/ 一式から
-    video_common.py を out_dir にコピーしてから使う)。
-    """
-    code = LAUNCHER_TEMPLATE.format(width=width, height=height, fps=fps)
-    (out_dir / "main.py").write_text(code, encoding="utf-8")
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("input", help="入力 mp4 ファイル")
@@ -180,12 +140,8 @@ def main():
     with open(out_dir / "manifest.json", "w") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
-    write_launcher(out_dir, args.width, args.height, args.fps)
-
     size_mb = (out_dir / "frames.bin").stat().st_size / (1024 * 1024)
     print(f"完了 -> {out_dir} ({len(frame_paths)} フレーム, frames.bin {size_mb:.1f} MB)")
-    print(f"lr-pyxel用に {out_dir / 'main.py'} を生成しました "
-          f"(video_common.py をこのディレクトリにコピーしてから使ってください)")
 
 
 if __name__ == "__main__":
