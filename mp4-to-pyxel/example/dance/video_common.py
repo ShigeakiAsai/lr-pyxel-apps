@@ -146,21 +146,7 @@ class VideoApp:
     フレーム数カウントだけで十分同期が取れる)。
     """
 
-    def __init__(self, out_dir: str, audio_controller=None, window_title="Pyxel Video",
-                 skip_pyxel_init=False):
-        """
-        skip_pyxel_init: True の場合、呼び出し側が既に
-        pyxel.init(literal_w, literal_h, ...) と pyxel.colors.from_list(...)
-        を済ませている前提で、ここでは呼び直さない。
-
-        lr-pyxel は Python スクリプトを実行する前に、ソースコードのテキストを
-        静的パースして pyxel.init() のリテラル引数を探し、それを最初の
-        RetroArch ジオメトリ申告に使う (retro.rs の parse_pyxel_init())。
-        manifest.json から実行時に読んだ変数を pyxel.init() に渡すと
-        静的パーサが解決できずデフォルト値にフォールバックしてしまうため、
-        preprocess.py が生成する起動スクリプト側でリテラル値の
-        pyxel.init(128, 96, ...) を先に呼んでおき、ここではスキップする。
-        """
+    def __init__(self, out_dir: str, audio_controller=None, window_title="Pyxel Video"):
         out_dir = Path(out_dir)
         manifest = load_manifest(out_dir)
 
@@ -176,8 +162,7 @@ class VideoApp:
 
         self.audio = audio_controller or NullAudioController()
 
-        if not skip_pyxel_init:
-            pyxel.init(self.w, self.h, title=window_title, fps=self.fps)
+        pyxel.init(self.w, self.h, title=window_title, fps=self.fps)
         pyxel.colors.from_list(self.palette)
 
         # "play end" メッセージ用の文字色/背景色を、動画専用パレットの中から
